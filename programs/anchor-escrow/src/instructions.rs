@@ -5,7 +5,7 @@ use anchor_spl::token::{CloseAccount, Mint, SetAuthority, TokenAccount, Transfer
 use crate::state::EscrowAccount;
 
 #[derive(Accounts)]
-#[instruction(vault_account_bump: u8, initializer_amount: u64)]
+#[instruction(vault_account_bump: u8, initializer_amount: u64, taker_amount: u64)]
 pub struct Initialize<'info> {
     #[account(mut, signer)]
     pub initializer: AccountInfo<'info>,
@@ -32,6 +32,28 @@ pub struct Initialize<'info> {
     pub token_program: AccountInfo<'info>,
 }
 
+impl<'info> Initialize<'info> {
+    pub fn into_transfer_to_pda_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self
+                .initializer_deposit_token_account
+                .to_account_info()
+                .clone(),
+            to: self.vault_account.to_account_info().clone(),
+            authority: self.initializer.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+
+    pub fn into_set_authority_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
+        let cpi_accounts = SetAuthority {
+            account_or_mint: self.vault_account.to_account_info().clone(),
+            current_authority: self.initializer.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+}
+
 #[derive(Accounts)]
 pub struct Cancel<'info> {
     #[account(mut, signer)]
@@ -49,6 +71,31 @@ pub struct Cancel<'info> {
     )]
     pub escrow_account: Box<Account<'info, EscrowAccount>>,
     pub token_program: AccountInfo<'info>,
+}
+
+impl<'info> Cancel<'info> {
+    pub fn into_transfer_to_initializer_context(
+        &self,
+    ) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.vault_account.to_account_info().clone(),
+            to: self
+                .initializer_deposit_token_account
+                .to_account_info()
+                .clone(),
+            authority: self.vault_authority.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+
+    pub fn into_close_context(&self) -> CpiContext<'_, '_, '_, 'info, CloseAccount<'info>> {
+        let cpi_accounts = CloseAccount {
+            account: self.vault_account.to_account_info().clone(),
+            destination: self.initializer.clone(),
+            authority: self.vault_authority.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
 }
 
 #[derive(Accounts)]
@@ -78,54 +125,6 @@ pub struct Exchange<'info> {
     pub vault_account: Account<'info, TokenAccount>,
     pub vault_authority: AccountInfo<'info>,
     pub token_program: AccountInfo<'info>,
-}
-
-
-impl<'info> Initialize<'info> {
-    pub fn into_transfer_to_pda_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
-        let cpi_accounts = Transfer {
-            from: self
-                .initializer_deposit_token_account
-                .to_account_info()
-                .clone(),
-            to: self.vault_account.to_account_info().clone(),
-            authority: self.initializer.clone(),
-        };
-        CpiContext::new(self.token_program.clone(), cpi_accounts)
-    }
-
-    pub fn into_set_authority_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
-        let cpi_accounts = SetAuthority {
-            account_or_mint: self.vault_account.to_account_info().clone(),
-            current_authority: self.initializer.clone(),
-        };
-        CpiContext::new(self.token_program.clone(), cpi_accounts)
-    }
-}
-
-impl<'info> Cancel<'info> {
-    pub fn into_transfer_to_initializer_context(
-        &self,
-    ) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
-        let cpi_accounts = Transfer {
-            from: self.vault_account.to_account_info().clone(),
-            to: self
-                .initializer_deposit_token_account
-                .to_account_info()
-                .clone(),
-            authority: self.vault_authority.clone(),
-        };
-        CpiContext::new(self.token_program.clone(), cpi_accounts)
-    }
-
-    pub fn into_close_context(&self) -> CpiContext<'_, '_, '_, 'info, CloseAccount<'info>> {
-        let cpi_accounts = CloseAccount {
-            account: self.vault_account.to_account_info().clone(),
-            destination: self.initializer.clone(),
-            authority: self.vault_authority.clone(),
-        };
-        CpiContext::new(self.token_program.clone(), cpi_accounts)
-    }
 }
 
 impl<'info> Exchange<'info> {
