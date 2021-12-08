@@ -7,7 +7,7 @@ pub mod state;
 
 use crate::instructions::*;
 
-declare_id!("BdJaXkfa1Fq3qdiatumJFLwqhs4YfYLANqNrqi81vfdo");
+declare_id!("7iDKuYGEDgVKqxAzM3GygLeGKgnJxk3jhVyDmiAhSx8h");
 
 
 #[program]

@@ -1,12 +1,12 @@
 [programs.localnet]
-anchor_escrow = "BdJaXkfa1Fq3qdiatumJFLwqhs4YfYLANqNrqi81vfdo"
+anchor_escrow = "7iDKuYGEDgVKqxAzM3GygLeGKgnJxk3jhVyDmiAhSx8h"
 
 [registry]
 url = "https://anchor.projectserum.com"
 
 [provider]
 cluster = "localnet"
-wallet = "~/.config/solana/id.json"
+wallet = "/home/bmstart/work/solana/keys/alice.json"
 
 # for devnet
 # [provider]
