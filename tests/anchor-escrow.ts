@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { AnchorEscrow } from '../target/types/anchor_escrow';
-import { PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
+import {ParsedAccountData, PublicKey, SystemProgram, Transaction} from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, Token } from "@solana/spl-token";
 import { assert } from "chai";
 
@@ -17,14 +17,20 @@ describe('anchor-escrow', () => {
   let mintB = null as Token;
   let aliceTokenAccountA = null;
   let aliceTokenAccountB = null;
+
   let bobTokenAccountA = null;
   let bobTokenAccountB = null;
+
+  let serviceTokenAccountA = null;
+
   let vault_account_pda = null;
   let vault_account_bump = null;
   let vault_authority_pda = null;
 
-  const takerAmount = 1000;
-  const initializerAmount = 500;
+
+  const takerAmount = 100000;
+  const initializerAmount = 50000;
+  const sendAmount = 120;
 
   const escrowAccount = anchor.web3.Keypair.generate();
 
@@ -33,6 +39,7 @@ describe('anchor-escrow', () => {
 
   const aliceMainAccount = anchor.web3.Keypair.generate();
   const bobMainAccount = anchor.web3.Keypair.generate();
+  const serviceMainAccount = anchor.web3.Keypair.generate();
 
   it("Initialize program state", async () => {
     // Airdropping tokens to a payer.
@@ -83,6 +90,7 @@ describe('anchor-escrow', () => {
 
     aliceTokenAccountA = await mintA.createAccount(aliceMainAccount.publicKey);
     bobTokenAccountA = await mintA.createAccount(bobMainAccount.publicKey);
+    serviceTokenAccountA = await mintA.createAccount(serviceMainAccount.publicKey);
 
     aliceTokenAccountB = await mintB.createAccount(aliceMainAccount.publicKey);
     bobTokenAccountB = await mintB.createAccount(bobMainAccount.publicKey);
@@ -106,6 +114,47 @@ describe('anchor-escrow', () => {
 
     assert.ok(aliceTokenAccountInfoA.amount.toNumber() == initializerAmount);
     assert.ok(bobTokenAccountInfoB.amount.toNumber() == takerAmount);
+
+    let accounts = await provider.connection.getParsedTokenAccountsByOwner(
+        aliceMainAccount.publicKey,
+            {
+              mint: mintA.publicKey
+            }
+        )
+
+    console.log("aliceTokenAccountA", aliceTokenAccountA.toBase58());
+    if (accounts && accounts.value && Array.isArray(accounts.value)) {
+      accounts.value.forEach((item) => {
+        const {account, pubkey} = item;
+        const amount1 = account.data.parsed.info.tokenAmount.amount;
+        console.log("account", amount1, pubkey.toString());
+      })
+    }
+
+  });
+  return;
+
+  it("transfer token", async () => {
+    await program.rpc.transfer(
+        new anchor.BN(sendAmount),
+        {
+          accounts: {
+            initializer: aliceMainAccount.publicKey,
+            senderTokenAccount: aliceTokenAccountA,
+            receiverTokenAccount: bobTokenAccountA,
+            serviceTokenAccount: serviceTokenAccountA,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          },
+          signers: [aliceMainAccount],
+        }
+    );
+    let _aliceTokenAccountInfoA = await mintA.getAccountInfo(aliceTokenAccountA);
+    console.log("alice", _aliceTokenAccountInfoA.amount.toNumber());
+    let _bobTokenAccountInfoA = await mintA.getAccountInfo(bobTokenAccountA);
+    console.log("bob", _bobTokenAccountInfoA.amount.toNumber());
+    let _serviceTokenAccountInfoA = await mintA.getAccountInfo(serviceTokenAccountA);
+    console.log("service", _serviceTokenAccountInfoA.amount.toNumber());
+
   });
 
   it("Initialize escrow", async () => {
@@ -131,8 +180,8 @@ describe('anchor-escrow', () => {
         {
           accounts: {
             initializer: aliceMainAccount.publicKey,
-            vaultAccount: vault_account_pda,
             mint: mintA.publicKey,
+            vaultAccount: vault_account_pda,
             initializerDepositTokenAccount: aliceTokenAccountA,
             initializerReceiveTokenAccount: aliceTokenAccountB,
             escrowAccount: escrowAccount.publicKey,

@@ -15,6 +15,7 @@ pub mod anchor_escrow {
     use super::*;
 
     const ESCROW_PDA_SEED: &[u8] = b"escrow";
+    const FEE_PERCENT: f64 = 5.0;
 
     pub fn initialize(
         ctx: Context<Initialize>,
@@ -23,20 +24,10 @@ pub mod anchor_escrow {
         taker_amount: u64,
     ) -> ProgramResult {
         ctx.accounts.escrow_account.initializer_key = *ctx.accounts.initializer.key;
-        ctx.accounts
-            .escrow_account
-            .initializer_deposit_token_account = *ctx
-            .accounts
-            .initializer_deposit_token_account
-            .to_account_info()
-            .key;
-        ctx.accounts
-            .escrow_account
-            .initializer_receive_token_account = *ctx
-            .accounts
-            .initializer_receive_token_account
-            .to_account_info()
-            .key;
+        ctx.accounts.escrow_account.initializer_deposit_token_account
+            = *ctx.accounts.initializer_deposit_token_account.to_account_info().key;
+        ctx.accounts.escrow_account.initializer_receive_token_account
+            = *ctx.accounts.initializer_receive_token_account.to_account_info().key;
         ctx.accounts.escrow_account.initializer_amount = initializer_amount;
         ctx.accounts.escrow_account.taker_amount = taker_amount;
 
@@ -53,6 +44,25 @@ pub mod anchor_escrow {
             ctx.accounts.escrow_account.initializer_amount,
         )?;
 
+        Ok(())
+    }
+
+    pub fn transfer(
+        ctx: Context<TransferToken>,
+        amount: u64,
+    ) -> ProgramResult {
+        let fee_amount = (amount as f64 / 100.0 * FEE_PERCENT) as u64;
+        msg!("Send token({}) to receiver", amount - fee_amount);
+        token::transfer(
+            ctx.accounts.into_transfer_to_receiver(),
+            amount - fee_amount,
+        )?;
+        msg!("Send fee token({}) to service", fee_amount);
+        token::transfer(
+            ctx.accounts.into_transfer_to_service(),
+            fee_amount,
+        )?;
+        msg!("END");
         Ok(())
     }
 

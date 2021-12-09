@@ -5,7 +5,43 @@ use anchor_spl::token::{CloseAccount, Mint, SetAuthority, TokenAccount, Transfer
 use crate::state::EscrowAccount;
 
 #[derive(Accounts)]
-#[instruction(vault_account_bump: u8, initializer_amount: u64, taker_amount: u64)]
+#[instruction(amount: u64)]
+pub struct TransferToken<'info> {
+    #[account(mut, signer)]
+    pub initializer: AccountInfo<'info>,
+    #[account(
+    mut,
+    constraint = sender_token_account.amount >= amount
+    )]
+    pub sender_token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub receiver_token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub service_token_account: Account<'info, TokenAccount>,
+    pub token_program: AccountInfo<'info>,
+}
+
+impl<'info> TransferToken<'info> {
+    pub fn into_transfer_to_receiver(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.sender_token_account.to_account_info().clone(),
+            to: self.receiver_token_account.to_account_info().clone(),
+            authority: self.initializer.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+    pub fn into_transfer_to_service(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.sender_token_account.to_account_info().clone(),
+            to: self.service_token_account.to_account_info().clone(),
+            authority: self.initializer.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+}
+
+#[derive(Accounts)]
+#[instruction(vault_account_bump: u8, initializer_amount: u64)]
 pub struct Initialize<'info> {
     #[account(mut, signer)]
     pub initializer: AccountInfo<'info>,
@@ -35,10 +71,7 @@ pub struct Initialize<'info> {
 impl<'info> Initialize<'info> {
     pub fn into_transfer_to_pda_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         let cpi_accounts = Transfer {
-            from: self
-                .initializer_deposit_token_account
-                .to_account_info()
-                .clone(),
+            from: self.initializer_deposit_token_account.to_account_info().clone(),
             to: self.vault_account.to_account_info().clone(),
             authority: self.initializer.clone(),
         };
