@@ -16,6 +16,7 @@ describe('anchor-escrow', () => {
   let mintA = null as Token;
   let mintB = null as Token;
   let aliceTokenAccountA = null;
+  let aliceTokenAccountA2 = null;
   let aliceTokenAccountB = null;
 
   let bobTokenAccountA = null;
@@ -89,6 +90,7 @@ describe('anchor-escrow', () => {
     );
 
     aliceTokenAccountA = await mintA.createAccount(aliceMainAccount.publicKey);
+    aliceTokenAccountA2 = await mintA.createAccount(aliceMainAccount.publicKey);
     bobTokenAccountA = await mintA.createAccount(bobMainAccount.publicKey);
     serviceTokenAccountA = await mintA.createAccount(serviceMainAccount.publicKey);
 
