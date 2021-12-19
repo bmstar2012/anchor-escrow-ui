@@ -4,8 +4,12 @@ anchor_escrow = "7iDKuYGEDgVKqxAzM3GygLeGKgnJxk3jhVyDmiAhSx8h"
 [registry]
 url = "https://anchor.projectserum.com"
 
+#[provider]
+#cluster = "localnet"
+#wallet = "/home/bmstart/work/solana/keys/alice.json"
+
 [provider]
-cluster = "localnet"
+cluster = "mainnet"
 wallet = "/home/bmstart/work/solana/keys/alice.json"
 
 # for devnet

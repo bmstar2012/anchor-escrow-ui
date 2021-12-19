@@ -134,7 +134,6 @@ describe('anchor-escrow', () => {
     }
 
   });
-  return;
 
   it("transfer token", async () => {
     await program.rpc.transfer(
